@@ -417,22 +417,13 @@ IntegrandVariables[] := vars;
 
 Jac[]/;(initialized&&parametrized):= jac;
 
-ExpandVectors[term_, vectors_] := Module[{tt, vvv, V, i},
-  tt = term /. 
-    Dispatch[Table[vectors[[i]] -> V[vectors[[i]]], {i, 1, Length[vectors]}]];
-  tt = tt /. {Dot[a_,b_]:>Dot[Expand[a],Expand[b]],q_^pow_/;Mod[pow,2]==0&&(Exponent[q/.V[qqq_]:>V[qqq]*vvv,vvv]==1):>Expand[q]^pow};
-  tt=tt/. Dispatch[V[a_]*V[b_] :> V[a].V[b]];
-  tt=tt /. Dispatch[{a_^n_Integer /; (((Exponent[a /. V[qqq_] :> V[qqq]*vvv, vvv] == 1) &&
-               (Mod[n, 2] == 0))):> (Expand[a].Expand[a])^(n/2)}];
+ExpandVectors[term_, vectors_] := Block[{tt, vvv, V, i},
+    tt = term /.  Dispatch[Table[vectors[[i]] -> V[vectors[[i]]], {i, 1, Length[vectors]}]];
 
-  tt=tt //. 
-        Dispatch[Dot[a_ + b_, c_] :> a.c + b.c];
+    tt = Expand[tt, _V]/.{v1_V * v2_V :> Sort[Dot[v1,v2]], V[v1_]^2 :> Dot[v1,v1]};
 
-  tt=tt //. 
-       Dispatch[Dot[a_, b_ + c_] :> a.b + a.c];
+    tt/.V->Identity
 
-  tt=tt/.Dispatch[ {(q_*a_V).b_ :>  q*a.b}] /. Dispatch[{Dot[a_, q_*b_V] :> q*a.b}] /. Dispatch[{Dot[a_V, b_V] /; 
-       Order[a, b] == -1 :> b.a}] /.Dispatch[ V[a_] :> a]
 ];
 
 
