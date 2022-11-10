@@ -57,6 +57,8 @@ DataPath::usage;
 UnsolvedTerm::usage="Whenever the LeadingSingularities method does not succeed the term that can not be solved is returned with 'UnsolvedTerm'";
 
 
+SQRTTimeConstrainException::usage="An exception which occurs if SQRTTimeConstrain is exceeded";
+
 
 
 Begin["`Private`"] (* Begin Private Context *)
@@ -850,9 +852,13 @@ ExALL[func_,vari_,pr_,ns_]:=Module[{exl,i,nn,sols,ex,x,nexl,rules,rules2, res, e
 		(*Print[ExIINT[unsolved/.res[[2]],Intersection[vari,Variables[unsolved]],n]];*)	
 		unsolvedReplaced = DeleteCases[unsolved/.res[[2]],{0,__}];
 		If[Length[unsolvedReplaced]==0, Return[res]];
-		exInt=TimeConstrained[ExSQRT[{unsolved[[-1,1]]/.res[[2]]},unsolved[[-1,2]],n],SQRTTimeConstrain,
+		exInt=TimeConstrained[
+                        ExSQRT[{unsolved[[-1,1]]/.res[[2]]},unsolved[[-1,2]],n],
+                        SQRTTimeConstrain,
 			remainunsolved=Append[remainunsolved,{unsolved[[-1,1]]/.res[[2]]}];
-			Print["SQRT time constrain exceeded  (",SQRTTimeConstrain," s). Solution will probably be incomplete."]; {{},{}}];
+			Print["SQRT time constrain exceeded  (",SQRTTimeConstrain," s). Solution will probably be incomplete."];
+                        Throw[SQRTTimeConstrainException, SQRTTimeConstrainException];
+                ];
 		unsolved=Delete[unsolved,-1];
 		joinedSols=(#[[1]] -> (#[[2]] //.Join[res[[2]],exInt[[2]]])) & /@ Join[res[[2]],exInt[[2]]];
 		res={Join[exInt[[1]]/.joinedSols,res[[1]]/.joinedSols][[GetLinsOrd[Join[exInt[[1]]/.joinedSols,res[[1]]/.joinedSols]  ][[1]]]],joinedSols};
