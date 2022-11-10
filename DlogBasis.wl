@@ -110,7 +110,7 @@ UseMacaulay2[mac_] := Module[{},
 	If[mac===False,Return[Null]];
 	If[Head[Macaulay2Path]=!=String || Head[DataPath]=!=String,		
 		Message[UseMacaulay2::Failed];
-		Return[Null];
+		Return[$Failed];
 	];
 	If[M2Factor[x^2-y^2]===(x-y)(x+y),
 		Print["Enabling Macaulay2"],
@@ -146,13 +146,13 @@ InitializeDlogbasis[]:=Module[{},
 	powers = {};
 	If[!MatchQ[Global`External, {a___}],
 		Message[InitializeDlogbasis::External];
-		Return[];
+		Return[$Failed];
 		,
 		external=Global`External;
 	];
 	If[!MatchQ[Global`Internal, {a__}],
 		Message[InitializeDlogbasis::Internal];
-		Return[];
+		Return[$Failed];
 		,
 		internal=Global`Internal;
 	];	
@@ -160,7 +160,7 @@ InitializeDlogbasis[]:=Module[{},
 		!FreeQ[ExpandVectors[Global`Propagators,Join[internal,external]]
 			/.Dot[_?(MemberQ[Join[internal,external],#]&),_?(MemberQ[Join[internal,external],#]&)]:>0, Alternatives@@(Join@@{internal,external})],
 		Message[InitializeDlogbasis::Propagators];
-		Return[];
+		Return[$Failed];
 		,
 		propagators=Global`Propagators;
 	];
@@ -169,7 +169,7 @@ InitializeDlogbasis[]:=Module[{},
 		If[!MatchQ[Global`Replacements, {___Rule}] ||
 			Or@@(!MatchQ[#,Dot[_,_]]&/@ExpandVectors[Global`Replacements[[All,1]],external]),
 			Message[InitializeDlogbasis::Replacements];
-			Return[];
+			Return[$Failed];
 			,
 			replacements=ExpandVectors[Global`Replacements, Join[internal,external]];
 		];
@@ -198,14 +198,15 @@ InitializeDlogbasis[]:=Module[{},
 
 
 ContractLams[expr_]/;initialized :=  Module[{ml, i, j},
-	ExpandVectors[
-		expr/.Table[lam[massless[[i]],b_]->lam[ml[i],b],{i,1,Length[massless]}]
-			/.Table[lam[a_,massless[[i]]]->lam[a,ml[i]],{i,1,Length[massless]}]
-			/.Table[AngleBracket[massless[[i]],b_]->AngleBracket[ml[i],b],{i,1,Length[massless]}]
-			/.Table[AngleBracket[a_,massless[[i]]]->AngleBracket[a,ml[i]],{i,1,Length[massless]}]
-			/.Table[massless[[i]]->lam[massless[[i]],massless[[i]]],{i,1,Length[massless]}]
-			/.Table[ml[i]->massless[[i]],{i,1,Length[massless]}],
-			Flatten[Join[Cases[expr, lam[_,_],Infinity],Table[lam[massless[[i]], massless[[j]]],{i,1,Length[massless]},{j,1,Length[massless]}]]]]
+            ExpandVectors[
+                expr/.Table[lam[massless[[i]],b_]->lam[ml[i],b],{i,1,Length[massless]}]
+                /.Table[lam[a_,massless[[i]]]->lam[a,ml[i]],{i,1,Length[massless]}]
+                /.Table[AngleBracket[massless[[i]],b_]->AngleBracket[ml[i],b],{i,1,Length[massless]}]
+                /.Table[AngleBracket[a_,massless[[i]]]->AngleBracket[a,ml[i]],{i,1,Length[massless]}]
+                /.Table[massless[[i]]->lam[massless[[i]],massless[[i]]],{i,1,Length[massless]}]
+                /.Table[ml[i]->massless[[i]],{i,1,Length[massless]}],
+                Flatten[Join[Cases[expr, lam[_,_],Infinity],Table[lam[massless[[i]], massless[[j]]],{i,1,Length[massless]},{j,1,Length[massless]}]]]
+        ]
 	/.{lam[a_, b_].lam[a_, d_] :> 0, lam[a_, b_].lam[c_, b_] :> 0(*, lam[a_].lam[a_,b_]:>0*)}
 	/. {lam[a_, b_].lam[c_, d_] :>     AngleBracket[a, c]/AngleBracket[b, d]*b.d(*,
 	lam[a_].lam[b_,c_]:=AngleBracket[a,b]til[c]*)}
@@ -227,15 +228,15 @@ SpinorHelicityParametrization::Massless="Third argument must be a list of two or
 SpinorHelicityParametrization[Internal_List, vars_, ps_List]/;(initialized) := Module[{},
 	If[Head[vars]===List && Length[Internal] != Length[vars], 
 		Message[SpinorHelicityParametrization::ArguemtLength12]; 
-		Return[Null];
+		Return[$Failed];
 	];		
 	If[
 		Head[ps[[1]]]===List && Length[ps] != Length[vars], Message[SpinorHelicityParametrization::ArguemtLength13]; 
-		Return[Null];
+		Return[$Failed];
 	];
 	If[Union[(#.#/.replacements)&/@ps]=!={0},
 		Message[SpinorHelicityParametrization::Massless];
-		Return[Null];
+		Return[$Failed];
 	];
 	SpinorHelicity[Internal, vars, ps];
 	SpinorHelicityParametrization[]
@@ -258,7 +259,7 @@ SpinorHelicity[momenta_List, vars_, ps_List]/;initialized:=Module[{vs, i, j, pp}
 		]
 		,{i,1,Length[momenta]}
 	];
-	spinorhelicityjac = Times@@Table[If[MemberQ[internal,momenta[[i]]],(2pp[[i,1]].pp[[i,2]]/.replacements)^2,1],{i,Length[pp]}];
+	spinorhelicityjac = Times@@Table[If[MemberQ[internal,momenta[[i]]],(2 Sort[pp[[i,1]].pp[[i,2]]]/.replacements)^2,1],{i,Length[pp]}];
 	spinorhelicityvars= Join@@vs[[Flatten[Position[momenta,a_/;MemberQ[internal,a],{1}]]]];
 	spinorhelicity = True;
 	shrules			
@@ -274,7 +275,7 @@ SetParametrization[Parametrization_]:=Module[{scalarproducts, extsps},
 	parametrization = Parametrization;
 	If[Length[parametrization]=!=3,
 		Message[SetParametrization::Invalid];
-		Return[Null];
+		Return[$Failed];
 	];
 	vars = parametrization[[1]];
 	pareqs = parametrization[[2]];
@@ -284,7 +285,7 @@ SetParametrization[Parametrization_]:=Module[{scalarproducts, extsps},
 		(Dot[a_,b_]/;MemberQ[internal,a]) | (Dot[c_,d_]/;MemberQ[internal,d])];
 	toparametrization = Quiet@Solve[ExpandVectors[pareqs, Join[internal, external]], scalarproducts];
 	(*Print[toparametrization];*)
-	If[Length[toparametrization] != 1, Message[SetParametrization::Invalid]; Return[Null];, 
+	If[Length[toparametrization] != 1, Message[SetParametrization::Invalid]; Return[$Failed];, 
 		If[spinorhelicity, 
 			extsps=Union@@(Table[ExpandVectors[external[[i]].external[[j]],external],{i,Length[external]},{j,Length[external]}]);
 			replacements=Join[Thread[extsps->Factor[ToSpinorHelicity[extsps]]]];
@@ -679,7 +680,7 @@ GenerateDlogbasis[__]:=Message[GenerateDlogbasis::args];
 GenerateDlogbasis[Gs_List, Ls_List, n_]:=Module[{sol},
 	If[Length[Ls]!=2||!MatchQ[(Union[Head/@Ls[[2]]]), {Rule}|{}]
 		,
-		Message[GenerateDlogbasis::args];Return[Null]
+		Message[GenerateDlogbasis::args];Return[$Failed]
 	];
 	If[Length[Gs] != Total[Length/@Ls]
 		, 
@@ -712,12 +713,12 @@ LeadingSingularities[func_,vars_,nn_]:=Module[{len, ns},
 	n=nn;
 	If[Head[vars]=!=List,
 		Message[LeadingSingularities::vars];
-		Return[Null]		
+		Return[$Failed]		
 	];
 	ns=Cases[Variables[func],_nn];
 	If[Union[Exponent[func,#]&/@ns]!={1},
 		Message[LeadingSingularities::func];
-		Return[Null]
+		Return[$Failed]
 	];	
 	len=(Cases[func,_nn,All]//Union)[[-1,1]];
 	Catch[LeadingSingularities[func,vars,nn,len],UnsolvedTerm]
@@ -2547,7 +2548,7 @@ MatrixInverse[mat_] :=Module[ {mat1,mat2,  l,mul,row,col, inv,nonzero},
 		nonzero=FirstPosition[mat1[[row]],a_/;(a=!=0&&a=!=List),{1}];
 		If[Length[nonzero]==0,
 			Print["Matrix is singular"];
-			Return[0];
+			Throw[$Failed];
 		];
 		col=nonzero[[1]];
 		AppendTo[inv, UnitVector[Length[mat],col]];
