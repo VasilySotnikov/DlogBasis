@@ -75,7 +75,7 @@ spinorhelicityvars={};
 spinorhelicityjac=1;
 shrules={};
 toparametrization={};
-vars={};
+$vars={};
 lsingvars={};
 pareqs={};
 jac=1;
@@ -96,6 +96,9 @@ gmax={};
 dlogs={};
 seeds={};
 sqrtlsing=False;
+
+sqrt;
+npar;
 
 SetGmax[gm_]:=gmax=gm;
 SetDlogs[dl_]:=dlogs=dl;
@@ -142,7 +145,7 @@ InitializeDlogbasis[]:=Block[{},
 	initialized = False;
 	parametrized = False;
 	toparametrization={};
-	vars={};
+	$vars={};
 	pareqs={};
 	jac=1;
 	powers = {};
@@ -199,7 +202,7 @@ InitializeDlogbasis[]:=Block[{},
 
 
 
-ContractLams[expr_]/;initialized :=  Block[{ml, i, j},
+ContractLams[expr_]/;initialized :=  Block[{ml},
             ExpandVectors[
                 expr/.Table[lam[massless[[i]],b_]->lam[ml[i],b],{i,1,Length[massless]}]
                 /.Table[lam[a_,massless[[i]]]->lam[a,ml[i]],{i,1,Length[massless]}]
@@ -248,7 +251,7 @@ SpinorHelicityParametrization[]/;(spinorhelicity&&initialized) :=
 	{spinorhelicityvars, #==ToSpinorHelicity[#]&/@propagators, spinorhelicityjac}/.replacements
 
 
-SpinorHelicity[momenta_List, vars_, ps_List]/;initialized:=Block[{vs, i, j, pp},
+SpinorHelicity[momenta_List, vars_, ps_List]/;initialized:=Block[{vs, pp},
 	If[Head[vars]=!=List, vs = Table[vars[i,j],{i,1,Length[momenta]},{j,1,4}],
 		vs = Table[If[Head[vars[[i]]]===List, vars[[i]], vars[[i]]/@Range[4]],{i,1,Length[momenta]}];
 	];
@@ -279,7 +282,7 @@ SetParametrization[Parametrization_]:=Block[{scalarproducts, extsps},
 		Message[SetParametrization::Invalid];
 		Return[$Failed];
 	];
-	vars = parametrization[[1]];
+	$vars = parametrization[[1]];
 	pareqs = parametrization[[2]];
 	jac = parametrization[[3]];
 
@@ -405,7 +408,7 @@ SHParam[internal_, external_, replacements_, vars_] :=
 
 GetParametrization[]:=toparametrization;
 
-Parametrize[expr_]/;(initialized&&parametrized) := Block[{exp, i, j},
+Parametrize[expr_]/;(initialized&&parametrized) := Block[{exp},
 	exp=expr/.epsil[a__]/;Length[{a}]==4:>PowerExpand[Sqrt[-MyFactor[Det[Table[Factor[Parametrize[{a}[[i]].{a}[[j]]]],{i,4},{j,4}]]]]];
 	exp=ExpandVectors[exp, Join[internal, external]];
 	exp=exp/.toparametrization;
@@ -416,11 +419,11 @@ Parametrize[expr_]/;(initialized&&parametrized) := Block[{exp, i, j},
 Parametrize[expr_List,n_]/;(initialized&&parametrized) := 
 	If[FreeQ[expr,Alternatives@@Join[internal,external]],GtoFunction[expr,n],(Parametrize/@expr).Array[n,Length[expr]]]
 
-IntegrandVariables[] := vars;
+IntegrandVariables[] := $vars;
 
 Jac[]/;(initialized&&parametrized):= jac;
 
-ExpandVectors[term_, vectors_] := Block[{tt, vvv, V, i},
+ExpandVectors[term_, vectors_] := Block[{tt, V},
     tt = term /.  Dispatch[Table[vectors[[i]] -> V[vectors[[i]]], {i, 1, Length[vectors]}]];
 
     tt = Expand[tt, _V]/.{v1_V * v2_V :> Sort[Dot[v1,v2]], V[v1_]^2 :> Dot[v1,v1]};
@@ -439,7 +442,7 @@ GtoFunction[term_]:=Block[{},
 	GtoFunction[{term},n]/.n[1]->1	
 ]
 
-GtoFunction[g_List, nn_]/;initialized :=Block[{maxa, i, j, func, glist},
+GtoFunction[g_List, nn_]/;initialized :=Block[{maxa, func, glist},
 	n=nn;
 	If[Length[g]==0, Return[0]];
 	glist=Union[Cases[g,Global`G[__],Infinity]];
@@ -448,8 +451,7 @@ GtoFunction[g_List, nn_]/;initialized :=Block[{maxa, i, j, func, glist},
 	(*func = Sum[n[i]*Times@@(Factor[Parametrize[propagators]]^(-g[[i,2]]+maxa)),{i,1,Length[g]}]*	
 		(Times@@(Factor[Parametrize[propagators]]^(-maxa))*jac);*)
 	
-	func = Collect[((n/@Range[Length[g]]).(g/.Global`G[_,ind_]:>Times@@(Factor[Parametrize[propagators]]^(-ind+maxa)))),n[_],Factor]
-		*(Times@@(Factor[Parametrize[propagators]]^(-maxa))*jac);
+	func = Collect[((n/@Range[Length[g]]).(g/.Global`G[_,ind_]:>Times@@(Factor[Parametrize[propagators]]^(-ind+maxa)))),n[_],Factor] *(Times@@(Factor[Parametrize[propagators]]^(-maxa))*jac);
 	(*fl = FunctionToList[func, n, Length[g]];
 	ListToFunction[fl, n]*)
 	FactorCollect[func]
@@ -462,7 +464,7 @@ GetMaximalAnsatz[G_[_, pinds_]] := GetMaximalAnsatz[G[1, pinds], 15];
 GetMaximalAnsatz[G_[_, pinds_], max_] :=
     Block[ {sps, proppow, pow, pp, oans, nans, count, kk,  
       spspow, allpws, propexp, spsexp, intexp, intpow, res, rawG, const, 
-      ig, Gs, toUnit, SP, P, SPtoP, i, pr, j},
+      ig, Gs, toUnit, SP, P, SPtoP},
       
         sps = Join[
           Join @@ Table[
@@ -488,13 +490,8 @@ GetMaximalAnsatz[G_[_, pinds_], max_] :=
                  kk[i] internal[[i]].a, (a_).internal[[i]] :> 
                  kk[i] a.internal[[i]]}), kk[i]], {i, Length[internal]}] & /@
            sps;
-        proppow = 
-         Table[pow @@ (Union[
-             Cases[pr, Alternatives @@ internal, Infinity]]), {pr, 
-           propagators}];
-        spspow = 
-         Table[pow @@ (Union[
-             Cases[pr, Alternatives @@ internal, Infinity]]), {pr, sps}];
+        proppow = Table[pow @@ (Union[ Cases[pr, Alternatives @@ internal, Infinity]]), {pr, propagators}];
+        spspow = Table[pow @@ (Union[ Cases[pr, Alternatives @@ internal, Infinity]]), {pr, sps}];
         allpws = Union[Cases[spspow, pow[__], Infinity]];
         intpow = (Times @@ (#^2 & /@ (pow /@ internal)))/(Times @@ (proppow^
               pinds));
@@ -556,7 +553,7 @@ PowCount[ex_, pow_] :=
 IntegrandAnsatz[G_[fam_, pinds_], dim_:4] :=
     Block[ {sps, proppow, pow, pp, oans, nans, count, kk,  
       spspow, allpws, propexp, spsexp, intexp, intpow, res, rawG, const, 
-      ig, Gs, toUnit, SP, P, SPtoP, i, pr, j, powinds, digs,ret, max},
+      ig, Gs, toUnit, SP, P, SPtoP, powinds, digs,ret, max},
       
     max=15; (*Maximum recursions*)
 	sps = Union@Cases[ExpandVectors[propagators,Join[internal,external]],Dot[a_,b_]/;(MemberQ[internal,a]||MemberQ[internal,b]),All];
@@ -578,15 +575,8 @@ IntegrandAnsatz[G_[fam_, pinds_], dim_:4] :=
                  kk[i] internal[[i]].a, (a_).internal[[i]] :> 
                  kk[i] a.internal[[i]]}), kk[i]], {i, Length[internal]}] & /@ sps;
 
-	proppow = 
-	Table[pow @@ (Union[
-             Cases[pr, Alternatives @@ internal, Infinity]]), {pr, 
-           propagators}];
-
-
-	spspow = 
-	Table[pow @@ (Union[
-             Cases[pr, Alternatives @@ internal, Infinity]]), {pr, sps}];
+	proppow = Table[pow @@ (Union[ Cases[pr, Alternatives @@ internal, Infinity]]), {pr, propagators}];
+	spspow = Table[pow @@ (Union[ Cases[pr, Alternatives @@ internal, Infinity]]), {pr, sps}];
 	allpws = Union[Cases[spspow, pow[__], Infinity]];
 	digs = IntegerDigits[#, 2, Length[internal]] & /@ Range[2^Length[internal] - 1];
 	allpws=(pow@@DeleteCases[internal^#,1])&/@digs;
@@ -604,46 +594,37 @@ IntegrandAnsatz[G_[fam_, pinds_], dim_:4] :=
 	powinds=allpws/.pow[a__]:>(dim-1);
 	(*Multi-loop criterium*)
 	powinds=allpws/.pow[a__]:>dim/2 (Length[pow[a]]+1)-1;
-	(*SP=Global`SP;*)
 	While[Length[oans] != Length[nans],
+            If[ count++;
+                 count > max,
+                 If[max==15,Print["Maximal number of recursions reached in IntegrandAnsatz"]];
+                 ret=Global`Failed[];
+                 Break[];
+            ];
 
-        
-		If[ count++;
-             count > max,
-             If[max==15,Print["Maximal number of recursions reached in IntegrandAnsatz"]];
-             ret=Global`Failed[];
-             Break[];
-
-		];
-
-		oans = nans;
-		nans = 
-		Prepend[Join @@ Table[oans[[i]] SP[j], {i, Length[oans]}, {j, Length[sps]}],   1];
-        nans = DeleteDuplicates[
-        	DeleteCases[nans,
-            (*q_ /; Max[PowCount[intpow q /. SP[in_] :> spspow[[in]], pow]] >=  0]];*)
-            q_ /; Max[PowCount[intpow q /. SP[in_] :> spspow[[in]], pow]+powinds] >  0]
-        ];
+            oans = nans;
+            nans = Prepend[Join @@ Table[oans[[i]] SP[j], {i, Length[oans]}, {j, Length[sps]}],   1];
+            nans = DeleteDuplicates[
+                    DeleteCases[nans,
+                (*q_ /; Max[PowCount[intpow q /. SP[in_] :> spspow[[in]], pow]] >=  0]];*)
+                q_ /; Max[PowCount[intpow q /. SP[in_] :> spspow[[in]], pow]+powinds] >  0]
+            ];
 	];
 	If[ret===Global`Failed[],Return[ret]];
 	If[Length[nans]==0, Return[{}]];
 
-	SPtoP = 
-	Quiet@Solve[ExpandVectors[#, Join[internal, external]] & /@ 
-               propagators == P /@ Range[Length[propagators]], 
-             sps][[1]] /. (sps[[#]] -> SP[#] & /@ Range[Length[propagators]]) /. replacements;
+	SPtoP = Quiet@Solve[ExpandVectors[#, Join[internal, external]] & /@ propagators == P /@ Range[Length[propagators]], sps][[1]] /. (sps[[#]] -> SP[#] & /@ Range[Length[propagators]]) /. replacements;
 	ig = G[fam, pinds];
 	pp = nans /. SPtoP;
 	res = Expand[pp] //. {P[a_]^n_ :> P @@ (a & /@ Range[n]), 
             P[a__] P[b__] :> P[a, b]} /. P[q__] :> Head[ig][fam, ig[[2]] 
             	- Sum[UnitVector[Length[ig[[2]]], P[q][[i]]], {i, 1, Length[P[q]]}]];
-
 	const = res /. Head[ig][__] :> 0;
 	rawG = res - const + const*Head[ig][fam, ig[[2]]];
 	Gs = Union[Cases[rawG, G[__], Infinity]];    
 	toUnit = Table[Gs[[i]] -> UnitVector[Length[Gs], i], {i, Length[Gs]}];
-	graw=RowReduce[rawG /. toUnit].Gs;
-	If[Length[sps]>Length[propagators],GetSimplifiedDlogList3[graw],graw]
+	rawG=RowReduce[rawG /. toUnit].Gs;
+	If[Length[sps]>Length[propagators],GetSimplifiedDlogList3[rawG],rawG]
 ]
 
 PowCount[ex_, pow_] :=  Block[ {digs},
@@ -652,21 +633,20 @@ PowCount[ex_, pow_] :=  Block[ {digs},
 ]
 
 
-GetDlogListRaw[Gs_, Ls_, n_] := Block[{i,tab, status, sol},
+GetDlogListRaw[Gs_, Ls_, n_] := Block[{tab, status, sol},
 	status=True;
 	tab=Table[Print[i," of ",Length[Ls[[1]]]];sol=Quiet@Solve[Ls[[1]] == UnitVector[Length[Ls[[1]]], i], 
       Cases[Variables[Ls[[1]]], n[_]]]; If[Length[sol]!=1, status=False; Nothing,  sol[[1]]], {i, 1, Length[Ls[[1]]]}];
      
   
     If[status===False,     
-        Print["No solution found for inverting the system. Possible reasons: Leading singularities are not linear independent"
-        <>" or integrand ansatz is not complete"];
+        Print["No solution found for inverting the system. Possible reasons: Leading singularities are not linear independent" <>" or integrand ansatz is not complete"];
         Return[Global`Failed[]]
     ];  
 	(n /@ Range[Length[Gs]].Gs) /. Ls[[2]] /. tab
 ]
 
-GetDlogListInv[Gs_, Ls_, n_] := Block[{i, j, cmat, reps, inv, ns},
+GetDlogListInv[Gs_, Ls_, n_] := Block[{cmat, reps, inv, ns},
 	ns = Union[Cases[Ls[[1]], n[_], Infinity]];
 	(*Print[ns];*)
 	cmat = Table[Coefficient[Ls[[1, i]], ns[[j]]], {i, Length[Ls[[1]]]}, {j, Length[Ls[[1]]]}];
@@ -695,7 +675,7 @@ GenerateDlogbasis[Gs_List, Ls_List, n_]:=Block[{sol},
 	If[sol===Global`Failed[] || FreeQ[sol,_Global`G], sol, GetSimplifiedDlogList3[sol]]
 ]
 
-GetDlogListMixed[Gs_, Ls_, n_]:=Block[{gdlog, nn},
+GetDlogListMixed[Gs_, Ls_, n_]:=Block[{gdlog},
 	gdlog = Gs.n /@ Range[Length[Gs]] /. Ls[[2]];
 	DeleteDuplicates[DeleteCases[Table[Coefficient[gdlog, nn], {nn,  Sort[DeleteDuplicates[Cases[gdlog, n[_], Infinity]]]}],0]]
 		
@@ -751,7 +731,7 @@ FunctionToList[func_,nn_,len_]:=Block[{coflist,flist},
 
 
 
-ExALL[func_,vari_,pr_,ns_]:=Block[{exl,i,nn,sols,ex,x,nexl,rules,rules2, res, exInt, unsolvedReplaced, joinedSols, gl, unslen},
+ExALL[func_,vari_,pr_,ns_]:=Block[{exl,i,nn,sols,ex,x,nexl,rules, res, exInt, unsolvedReplaced, joinedSols, gl, unslen},
 	unsolved={};
 	unslen=0;
 	remainunsolved={};
@@ -871,7 +851,7 @@ ExALL[func_,vari_,pr_,ns_]:=Block[{exl,i,nn,sols,ex,x,nexl,rules,rules2, res, ex
 ResToFunc[res_, n_] := 
 	 {{{If[Length[res[[1]]]>0,ListToFunction[#, n] & /@ res[[1, 1, 1]], {}], {}, {}}}, res[[2]]};
 
-MakeNicer[res_] := Block[{rules,i, r},
+MakeNicer[res_] := Block[{rules, r},
 	r = If[Length[res[[2]]] > 0,
 		rules = res[[2, -1]];
 		Do[rules = Join[#[[1]]->(CleanExpr[#[[2]]/.rules])&/@res[[2,-i]], rules ], {i, 2, Length[res[[2]]]}];
@@ -882,7 +862,7 @@ MakeNicer[res_] := Block[{rules,i, r},
 ]
 
 
-ExLlist[fl_]:=Block[{tab,i,j},
+ExLlist[fl_]:=Block[{tab,j},
 	(*fl={{{func,func,func},vari,pr},{{func,func},vari,pr},{{func},vari,pr}}*)
 	If[pri>2,Print["Start ExLsList. Length fl: ", Length[fl]]];
 	tab=Join@@Table[If[pri>1,Print["term ",i," of ",Length[fl]]];ExLsList[fl[[i]]],{i,1,Length[fl]}];
@@ -906,7 +886,7 @@ ExLlist[fl_]:=Block[{tab,i,j},
 
 FindSuitedListList[list_,vars_]:=Times@@(FindSuitedList[#,vars]&)/@list;
 
-FindSuitedList[list_,vars_]:=Block[{den,ext,i,j},
+FindSuitedList[list_,vars_]:=Block[{den,ext},
 	(*Print["Enter FindSuitedList"];
 	Print[list];*)
 	(*If[Head[list[[1,2,1,1]]]===List,Return[Times@@(FindSuitedList[#,vars]&)/@list]];*)
@@ -934,7 +914,7 @@ TransTwoSquaresRepl[term_, v1_, v2_, sqrt_] := Block[{tr},
 
 
 
-ExLsList[flst_]:=Block[{fls,fs,pos,g,pl,rest,gr,ret,zer,prob,at,egl,i,j,k,trans, st,uns},
+ExLsList[flst_]:=Block[{fls,fs,pos,g,pl,rest,gr,ret,zer,prob,at,egl,j,trans, st,uns},
 	(*fls={{func,func,func},vari,pr}*)
 	(*Print[fls];*)
 	fls=flst;
@@ -971,7 +951,7 @@ ExLsList[flst_]:=Block[{fls,fs,pos,g,pl,rest,gr,ret,zer,prob,at,egl,i,j,k,trans,
 			If[pri>3,Print["st"]];
 			If[pri>3,Print[st]];*)
 			st={};
-			at = Join[at, Cases[st, q_/;FreeQ[q,Global`sqrt|ComplexInfinity|Indeterminate]]];
+			at = Join[at, Cases[st, q_/;FreeQ[q,sqrt|ComplexInfinity|Indeterminate]]];
 			If[pri>3,Print["atalles"]];
 			If[pri>3,Print[at]];
 			If[pri>5,Print["prob",i]];			
@@ -1027,7 +1007,7 @@ ExLsList[flst_]:=Block[{fls,fs,pos,g,pl,rest,gr,ret,zer,prob,at,egl,i,j,k,trans,
 
 
 ExGlist[list_,x_]:=
-Block[{qp,i,pp,gel,ltf,exgunsolved},
+Block[{qp,pp,gel,ltf,exgunsolved},
 	
 	exgunsolved={};
 	qp=Table[If[pri>1,Print["---Term ",i," of ",Length[list]]];
@@ -1055,7 +1035,7 @@ Block[{qp,i,pp,gel,ltf,exgunsolved},
 ];
 
 
-TransformProb[prob_,vars_,at_]:=Block[{transden,fs,j,trans,pos,ind,error},
+TransformProb[prob_,vars_,at_]:=Block[{transden,fs,trans,pos,ind,error},
 	(*prob=func,vars=vari,at={{{a[2]->a[2]^2+1,a[3]->a[4]},s+t,{a,1,3}},{...}}*)
 	ind=0;
 	error=False;
@@ -1087,7 +1067,7 @@ TransformProb[prob_,vars_,at_]:=Block[{transden,fs,j,trans,pos,ind,error},
 	{CleanMinusListPlusFactorOut[trans],ind,pos}
 ];
 
-FindSuited2[f_,vars_]:=Block[{den,ext,i,j},
+FindSuited2[f_,vars_]:=Block[{den,ext},
 	If[Head[f]===List,Return[Times@@(FindSuited2[#,vars]&)/@f]];
 	den=Denominator[f];
 	den=FactorList[den][[All,1]];
@@ -1113,17 +1093,12 @@ GetLinsOrd[funcs_]:=Block[{ord, gl, iord, gl2, ord2, gl3, time},
 ]
 
 (*Rearrange nested Factor-Lists and summarize same factors*)
-CleanFactorList[list_] := Block[{lis,i},
+CleanFactorList[list_] := Block[{lis},
   lis = list;
-  lis = If[Head[#[[1]]] === List, 
-      Table[{#[[1, i, 1]], #[[1, i, 2]]*#[[2]]}, {i, 1, 
-        Length[#[[1]]]}], #] & /@ lis;
+  lis = If[Head[#[[1]]] === List, Table[{#[[1, i, 1]], #[[1, i, 2]]*#[[2]]}, {i, 1, Length[#[[1]]]}], #] & /@ lis;
   lis = Join @@ (If[Head[#[[1]]] === List, #, {#}] & /@lis);
   lis = GatherBy[lis, NumericQ@First@# &];
-  lis = 
-    Join@@Table[If[
-      NumericQ[lis[[i, 1, 1]]], {{Times @@ Power @@@ lis[[i]], 1}}, 
-      lis[[i]]], {i, 1, Length[lis]}];
+  lis = Join@@Table[If[ NumericQ[lis[[i, 1, 1]]], {{Times @@ Power @@@ lis[[i]], 1}}, lis[[i]]], {i, 1, Length[lis]}];
   lis = GatherBy[lis, First];
   lis={#[[1, 1]], Plus @@ #[[All, 2]]} & /@ lis;
   DeleteCases[lis,{_,0}]
@@ -1141,8 +1116,7 @@ NormalizeRule[rule_, n_] := Block[{},
 
 
    
-Trafo[ov_, nv_, a_] := 
-  Block[{he, gl, i, j, l, k, tab, pref, tabs, reps, ind},
+Trafo[ov_, nv_, a_] := Block[{he, gl, i, j, l, k, tab, pref, tabs, reps},
    he = If[Min[i, j] == 1, If[Max[i, j] == 2, 3, 2], 1];
    gl = a[1] v[i, i] + (
      a[3] AngleBracket[ j, he] v[i,j])/ AngleBracket[i, he]  + (
@@ -1159,18 +1133,18 @@ Trafo[ov_, nv_, a_] :=
          v @@ ind)] // 
       ToSpinorHelicity, {ind, {{l, l}, {k, k}, {l, k}, {k, l}} /. {k -> 
          ov[[1]], l -> ov[[2]]}}];
-   pref = Table[D[pref[[i]], a[i]], {i, 1, 4}];
+   pref = Table[D[pref[[ii]], a[ii]], {ii, 1, 4}];
    tabs = 
     Expand[tab/pref] /. 
      AngleBracket[p_, q_] /; p > q :> -AngleBracket[q, p];
-   reps = Table[a[i] -> tabs[[i]] /. abfourpointrule, {i, 1, 4}]
+   reps = Table[a[ii] -> tabs[[ii]] /. abfourpointrule, {ii, 1, 4}]
 ];
 
 abfourpointrule = {AngleBracket[2,4]->(AngleBracket[1, 4]*AngleBracket[2, 3]*(s+ t)/(AngleBracket[1, 3]*t)),
 	AngleBracket[3, 4] -> AngleBracket[1, 4]*AngleBracket[2, 3]*s/(AngleBracket[1, 2]*t)}
 
 AllTransformations[vari_, pv_] := 
-	Block[{vc, i, j, k, l, trafs, jacs, trafos, perm, trvar},
+	Block[{vc, trafs, jacs, trafos, trvar},
 	trafos = {};
 	Do[
 		vc = Cases[vari, pv[[i, 1]][_]];
@@ -1245,7 +1219,7 @@ Catch1[ex_,x_,vars_,nn_]:=Block[{fn,pd,pred},
 	RearrangeRules[Quiet[Solve[pred==0*Range[Length[pred]],nn][[1]]]]
 ];
 
-Catch1New[ex_,x_,vars_,nn_]:=Block[{pd,pred,i},
+Catch1New[ex_,x_,vars_,nn_]:=Block[{pd,pred},
 	(*Print[Catch11[ex,x,vars,nn]];*)
 	pd=Select[ex[[1,2]],#[[2]]>=2&];
 	If[pri>6,Print["pd:"]];
@@ -1294,7 +1268,7 @@ Catch3[ex_,x_,vars_,nn_]:=Block[{fn,pd,pred},
 
 RearrangeRules[rules_, nn_] := Block[{},n=nn; RearrangeRules[rules]]
 
-RearrangeRules[rules_]:=Block[{newrules, i, term, index, rul},
+RearrangeRules[rules_]:=Block[{newrules, term, index, rul},
 	rul=rules;
 	newrules={};
 	Do[
@@ -1312,7 +1286,7 @@ RearrangeRules[rules_]:=Block[{newrules, i, term, index, rul},
 		SortBy[newrules,#[[1,1]]&]
 ];
 
-CleanExpr[term_]:=Block[{ns, i, res},
+CleanExpr[term_]:=Block[{ns,  res},
 	ns=Cases[Variables[term],n[_]];
 	res = Sum[ns[[i]]*Together[Coefficient[term,ns[[i]]]],{i,1,Length[ns]}];
 	If[!PossibleZeroQ[res-term],Throw[CleanExprError[term]]];
@@ -1345,7 +1319,7 @@ ListFactorWhole[fl_]:=Block[{lf,nl},
 ];
 
 
-PlugInRules[exl_,rules_]:=Block[{nexl,i,j,k,l,m,rvar,cf},
+PlugInRules[exl_,rules_]:=Block[{nexl,rvar,cf},
 	rvar={#,{}}&/@Cases[Variables[rules[[All,2]]],n[_]];
 	nexl=exl;
 	Do[
@@ -1371,7 +1345,7 @@ PlugInRules[exl_,rules_]:=Block[{nexl,i,j,k,l,m,rvar,cf},
 
 
 (*Assumes Factorlists with unique signs and without double elements*)
-ListFactor[list_] := Block[{int, pows, minus, ls, pref, pos,i,j,res},
+ListFactor[list_] := Block[{int, pows, minus, ls, pref, pos,res},
 	ls = If[# === {},{{1,1}},If[Length[Cases[#,{0,_}]]>0,{{0,1}},If[ !NumericQ[#[[1,1]]], Prepend[#,{1,1}], #] ] ]&/@list;
 	If[ls[[All,1,1]]===0*Range[Length[ls]],Return[{{{{0,1}},{{1,1}}},ls}]];
    ls =  If[#[[1, 1]] === 0, {{0, 1}}, #] & /@ ls;
@@ -1407,7 +1381,7 @@ ListFactor[list_] := Block[{int, pows, minus, ls, pref, pos,i,j,res},
    res
 ];
 
-SumFactorLists[lists_] := Block[{lfa, i, res},
+SumFactorLists[lists_] := Block[{lfa, res},
 	lfa = ListFactor[lists];
 	lfa = Join @@ {lfa[[1, 1]], {#[[1]],-#[[2]]}&/@lfa[[1,2]],
     	MyFactorList[
@@ -1423,7 +1397,7 @@ SumFactorLists[lists_] := Block[{lfa, i, res},
 
 Wellshaped[flist_]:= Min[Length/@Join[flist[[1]],flist[[2]]]]>=1
 
-MyListApartNew[flist_,x_]:=Block[{num,den,nums,denlist,tab,cl,i,pos,nlist},
+MyListApartNew[flist_,x_]:=Block[{num,den,nums,denlist,tab,cl,pos,nlist},
 	If[pri>8,Print[MyListtApartNew[flist,x]]];
 	(*Print[MyListtApartNew[flist,x]];*)
 	If[!Wellshaped[flist], Print["Not well shaped"]; Print[flist]];
@@ -1451,7 +1425,7 @@ MyListApartNew[flist_,x_]:=Block[{num,den,nums,denlist,tab,cl,i,pos,nlist},
 
 
 (*searches for double poles and returns a list of rules or the residues*)
-MyListApartDB[flist_,x_]:=Block[{num,den,nums,denlist,tab,cl,i,pos,nlist},
+MyListApartDB[flist_,x_]:=Block[{num,den,nums,denlist,tab,cl,pos,nlist},
 	If[pri>8,Print[MyListtApartNew[flist,x]]];
 	(*Print[MyListtApartNew[flist,x]];*)
 	If[!Wellshaped[flist], Print["Not well shaped"]; Print[flist]];
@@ -1486,12 +1460,11 @@ ProductFactorLists[lists_]:=Block[{lis},
    	If[lis[[1,1]]===0,{{0,1}},lis]
 ];
 
-MyFLInsertList[list_, rep_] := 
- Block[{res, i}, 
-  res = ProductFactorLists[
-    Append[Table[{#[[1]], #[[2]]*list[[i, 2]]} & /@ 
-       MyFLInsert[list[[i, 1]], rep], {i, 2, 
-       Length[list]}], {list[[1]]}]];
+MyFLInsertList[list_, rep_] := Block[{res}, 
+    res = ProductFactorLists[
+        Append[Table[{#[[1]], #[[2]]*list[[i, 2]]} & /@ 
+        MyFLInsert[list[[i, 1]], rep], {i, 2, Length[list]}], {list[[1]]}]
+    ];
   (*If[! PossibleZeroQ[
      Times @@ Power @@@ res - (Times @@ Power @@@ list /. rep)], 
    Throw[MyFLInsertErrorList[list, rep]]];*)
@@ -1515,7 +1488,7 @@ MyFLInsertFunc[flist_, rep_] := Block[{res},
   	res
 ]
 
-MyFactorList[expr_] := Block[{fl, m, i, factored, time},
+MyFactorList[expr_] := Block[{fl, m, factored, time},
   (*Print[MyyFactorList[expr]];*)
   If[(UseMacaulay===True)&&(ByteCount[expr]>10000),
   	fl=TimeConstrained[FactorList[expr],2,Fail];
@@ -1593,7 +1566,7 @@ M2Factor[term_] := Block[{vars, repl, irepl, string, str, out},
 ]
 
 (*remove all fractions from n-coefficients and put common factors into overall numerator*)
-CleanMinusListPlusFactorOut[flist_]:=Block[{i, tab, lcm, clean, gcd},
+CleanMinusListPlusFactorOut[flist_]:=Block[{tab, lcm, clean, gcd},
 	clean={{{},{}},{}};
 	tab=Table[Cases[flist[[2,i]],x_/;x[[2]]<0],{i,1,Length[flist[[2]]]}];
 	lcm=LCMlist[Table[{#[[1]],-#[[2]]}&/@tab[[i]],{i,1,Length[tab]}]];
@@ -1627,7 +1600,7 @@ LCMlist[lists_]:=Block[{l,lcm,i},
 ];
 
 (*expects the first factor to be numeric*)
-GCDlist[lists_]:=Block[{clists, res, inters, i, mins},
+GCDlist[lists_]:=Block[{clists, res, inters, mins},
 	If[Min@@lists[[All,All,2]]<1,Throw[InvalidGCDInput[lists]]];
 	clists=DeleteCases[lists,{{0,1},___}];
 	res={{GCD@@(clists[[All,1,1]]^clists[[All,1,2]]),1}};
@@ -1652,19 +1625,17 @@ ListCancel[{num_,den_}]:=Block[{gat,res,gcd},
    	res
 ];
 
-ListToFunction[list_,n_]:=Block[{i},
-	Times@@Power@@@list[[1,1]]/Times@@Power@@@list[[1,2]]*Sum[n[i]*Times@@Power@@@list[[2,i]],{i,1,Length[list[[2]]]}]
-];
+ListToFunction[list_,n_]:= Times@@Power@@@list[[1,1]]/Times@@Power@@@list[[1,2]]*Sum[n[i]*Times@@Power@@@list[[2,i]],{i,1,Length[list[[2]]]}];
 
 
 
-insertNewRandom[list_,n_]:=Block[{r,i},
+insertNewRandom[list_,n_]:=Block[{r},
 	r=Table[RandomComplex[WorkingPrecision->n],{i,1,Length[list]}];
 	Table[list[[i]]->r[[i]],{i,1,Length[list]}]
 ];
 
 
-MinSub[mat_,order_]:=Block[{base,l,ind},
+MinSub[mat_,order_]:=Block[{base,l,ind, i},
 	ind={};
 	l=0;
 	base={};
@@ -1681,7 +1652,7 @@ MinSub[mat_,order_]:=Block[{base,l,ind},
 	{base,ind}
 ]
 
-GetLinsN[list_, vars_]:=Block[{allv,lis,sl,rl,ar,ir,n,ms,mat,b,ind,ls,j,q,i,k,gl},
+GetLinsN[list_, vars_]:=Block[{allv,lis,sl,rl,ar,ir,n,ms,mat,b,ind,ls,q,gl},
 
 	allv=vars;
 	n=Length[list]*10+25;
@@ -1719,7 +1690,7 @@ GetLinsN[list_, vars_]:=Block[{allv,lis,sl,rl,ar,ir,n,ms,mat,b,ind,ls,j,q,i,k,gl
 GetLinsN[list_]:=GetLinsN[list,Variables[list]];
 
 
-GetLinsOrd2[funcs_]:=Block[{nfuncs, df, i, res},
+GetLinsOrd2[funcs_]:=Block[{nfuncs, df, res},
 	nfuncs=(Sort[{#,-#}][[1]])&/@funcs;
 	df=DeleteDuplicates[nfuncs];
 	res={Table[Position[nfuncs,df[[i]]][[1,1]],{i,Length[df]}],{}};
@@ -1728,7 +1699,7 @@ GetLinsOrd2[funcs_]:=Block[{nfuncs, df, i, res},
 ]
 
 GetLinsTiz[funcs_]:=Block[
-	{vars,nvars,nfuncs,extra,sampletable,newvars,repl,newfuncs,func,h,i,j,
+	{vars,nvars,nfuncs,extra,sampletable,newvars,repl,newfuncs,func,
 		coeffs,system,sol,indep,coeff,dep,indepcoeffs, zero, fun, rels, (*trues, *)table},
 	If[pri>6, Print["GetLinsTiz ", Length[funcs]]];
 	If[pri>13, Print[GetLinsTizz[funcs]]];
@@ -1792,7 +1763,7 @@ CatchNoTrafo[prob_, vars_]:=Block[{pd},
 ]
 
 (*Warning: Handling of sqrt[__] in the numerator is not fully resolved*)
-FactorCollect[term_]:=Block[{res, t1, num, den, ns, nds, collnum, lcm, gcd, ii, faclist},
+FactorCollect[term_]:=Block[{res, t1, num, den, ns, nds, collnum, lcm, gcd, faclist},
 	(*Put[term,"~/workspace/lsing/UnsolvedCases/FactorCollect.txt"];*)
 	If[PossibleZeroQ[term], Return[0]];
 	If[pri>7, Print["FactorCollect1"]];
@@ -1828,7 +1799,7 @@ FactorCollect[term_]:=Block[{res, t1, num, den, ns, nds, collnum, lcm, gcd, ii, 
 
 
 ExSQRT[terms_, vars_, nn_] :=
-    Block[ {vs, nterms, rules, nex, next, gl, i, lsings},
+    Block[ {vs, nterms, rules, nex, next, gl, lsings},
         If[Length[vars]==0,Return[{{terms},{}}]];
     	n=nn;
     	lsingvars=vars;
@@ -1881,7 +1852,7 @@ ExSQRT[terms_, vars_, nn_] :=
 
 
 ExSqrtList[term_, vars_, nn_] :=
-    Block[ {nterm, rules, nrules, i, fsv, xxx, probs, rest, sqr, ls},
+    Block[ {nterm, rules, nrules, fsv, xxx, probs, rest, sqr, ls},
     	n=nn;
     	(*Print[ExxSqrtList[term,vars,n]];*)
     	If[pri>4,Print["ExSqrtList"]];
@@ -1999,8 +1970,7 @@ ApartListSQRT[term_, xx_] :=
             quo = 0
         ];
         st = FactorCollect /@ ApartList[rem, xx];
-        Do[If[ Exponent[Numerator[st], xx] - Exponent[Denominator[st], xx] >=
-             0 || Exponent[Denominator[st], xx] > 2,
+        Do[If[ Exponent[Numerator[st], xx] - Exponent[Denominator[st], xx] >= 0 || Exponent[Denominator[st], xx] > 2,
                Print["Apart Error!"];
                Abort[]
            ], {i, Length[st]}];
@@ -2075,8 +2045,8 @@ ApartList[term_, x_] :=
 *)
 
 ApartList[term_, x_] :=
-    Block[ {dens, lins, squares, a, b, c, p, s, rad, g, u, v, i, const, 
-      con, muster, linstable, squarestable, t1, t2, tsum, res, reps, 
+    Block[ {dens, lins, squares, a, b, c, p, s, rad, g, u, v, const, 
+      con, muster, linstable, squarestable, t1, tsum, res, reps, 
       clnum, cl,varstozeta,zetatovars},
       If[pri>10,Print["ApartList"]];
       If[pri>10,Print[ApartListt[term, x]]];
@@ -2094,7 +2064,7 @@ ApartList[term_, x_] :=
              u[i] x + v[i], {i, Length[lins]}] Product[
              a[i] x^2 + b[i] x + c[i], {i, Length[squares]}] con);
         linstable = 
-         Table[MyFactor[(muster (u[i] x + v[i]) /. x -> -v[i]/u[i])/ (u[i] x +
+         Table[MyFactor[(muster (u[i]*x + v[i]) /. x -> -v[i]/u[i])/ (u[i] x +
                v[i])], {i, Length[lins]}];
         If[Length[squares]>0,
         	squarestable = 
@@ -2104,8 +2074,8 @@ ApartList[term_, x_] :=
               (* t2 = (muster (a[i] x^2 + b[i] x + 
                        c[i])/(a[i] (x - (p - s)/(2 a[i]))) /. 
                    x -> (p + s)/(2 a[i]))/(x - (p + s)/(2 a[i]));*)
-               varstozeta=Table[DeleteCases[Variables[t1], s][[i]] -> Zeta[100+2*i + 1], {i, Length[Variables[t1]] - 1}];
-               zetatovars=Table[varstozeta[[i, 2]] -> varstozeta[[i, 1]], {i, Length[varstozeta]}];
+               varstozeta=Table[DeleteCases[Variables[t1], s][[ii]] -> Zeta[100+2*ii + 1], {ii, Length[Variables[t1]] - 1}];
+               zetatovars=Table[varstozeta[[ii, 2]] -> varstozeta[[ii, 1]], {ii, Length[varstozeta]}];
                tsum=Factor[2 Re[t1/.varstozeta/.s->I Zeta[99]]]/.zetatovars/.Zeta[99]^j_/;Mod[j,2]==0:>(-rad)^(j/2);
                If[ ! FreeQ[tsum, Zeta[99]],
                    Print["Apart Error s"];
@@ -2156,7 +2126,7 @@ ApartList[term_, x_] :=
 
 CollectVN[expr_]:=Block[{ns,vs},
 	ns=Union@Cases[expr,n[_],Infinity];
-	vs=Union[vars,lsingvars];
+	vs=Union[$vars,lsingvars];
 	If[Length[vs]==0,Return[expr]];
 	If[Length[ns]==0,Return[MyCollect[expr,vs,MyFactor]]];
 	MyCollect[expr, ns, MyCollect[#,vs,MyFactor]&]
@@ -2191,7 +2161,7 @@ MyCancel[term_] := Block[{num, den, ns, coeffs, factored, i, newnum, newden, bc}
 	newnum/newden
 ]*)
 
-MyCancel[term_] := Block[{num, den, ns, coeffs, factored, i, newnum, newden, bc, can},
+MyCancel[term_] := Block[{num, den, ns, coeffs, factored, newnum, newden, bc, can},
 	num = Numerator[term];
 	den = Denominator[term];
 	ns = Union[Cases[{term}, n[_], Infinity]];
@@ -2246,7 +2216,7 @@ ConvertQuadratic[term_,x_,vars_]:=Block[{den, y, fac, cl, a, b, c, d, trans, al,
 ]
 
 FindTransformation[term_, vars_] :=
-    Block[ {sqr, tra, sols, q, sol, i, v1, vothers, vothone, qs, ih, perms, pp, p, k, pmax},
+    Block[ {sqr, tra, sols, q, sol, v1, vothers, vothone, qs, perms, pmax},
     	If[pri>4,Print["Find Transformation"]];        
     	If[pri>8,Print[FindTransformationn[term, vars]]]; 
         If[ Length[vars] < 2,
@@ -2305,7 +2275,7 @@ FindTransformation[term_, vars_] :=
     ]
 
 FindSimplestVariable[term_, vars_] :=
-    Block[ {P, Q, S, den, exps, expS, Qlist, points, i, j, h, effexps, cl},
+    Block[ {P, Q, S, den, exps, expS, Qlist, points, effexps, cl},
         P = Numerator[term];
         den = Denominator[term];
         S = Cases[ProductToList[den], sqrt[_]];
@@ -2475,7 +2445,7 @@ ExSquareRoot[term_, x_] := Block[{num, den, sqr, xt, cl, rep},
   FactorCollect/@{num/((Times @@ DeleteCases[den, xt])*cl[[2]]) /. rep}
 ]
 
-SimplifyNestedRoot[term_]:=Block[{rad,sq,a,b,c,num,den,bcon,bpol,bfac,ecands,f,res,ter,denext},
+SimplifyNestedRoot[term_]:=Block[{aa, bb, cc, rad,sq,num,den,bcon,bpol,bfac,ecands,f,res,denext},
 	rad=Factor[term^2/.sqrt[a_]^2:>a//.sqrt[a_]:>sqrt[MyFactor[a]]//.sqrt[a_^i_ b_]/;i<0:>sqrt[a^(i+2)*b]/a];
 		(*//.sqrt[a_]^i_/;i>1\[RuleDelayed]a sqrt[a]^(i-2)//.sqrt[a_]^i_/;i<0\[RuleDelayed]1/a sqrt[a]^(i+2)//Factor);*)
 		(*//.sqrt[a_]^(-1)\[RuleDelayed]sqrt[a]/a//Expand)/.sqrt[a_;*)
@@ -2489,17 +2459,17 @@ SimplifyNestedRoot[term_]:=Block[{rad,sq,a,b,c,num,den,bcon,bpol,bfac,ecands,f,r
 	sq=Union@Cases[num,sqrt[_],All];
 	If[Length[sq]!=1,Return[{}]];
 	sq=sq[[1]];
-	{a,b,c}={num/.sq->0,Factor[Coefficient[num,sq]],Replace[sq,sqrt[a_]:>a]};
-	{bcon,bpol}=FactorTermsList[b];
+	{aa,bb,cc}={num/.sq->0,Factor[Coefficient[num,sq]],Replace[sq,sqrt[a_]:>a]};
+	{bcon,bpol}=FactorTermsList[bb];
 	If[Mod[bcon,2]!=0,Return[{}],bcon=bcon/2];
 	bfac=DeleteCases[Join@@Replace[Join[FactorInteger[bcon],FactorList[bpol]],{a_,i_}:>ConstantArray[a,i],{1}],1];
 	ecands=Times@@@Union[Subsets[bfac]];
-	res=Table[f=b/(2e);If[Expand[e^2+2 e f sqrt[c]+f^2 c-num]===0,(e+f sqrt[c])/PowerExpand[Sqrt[den]],Nothing],{e,ecands}];
+	res=Table[f=bb/(2e);If[Expand[e^2+2 e f sqrt[cc]+f^2 cc-num]===0,(e+f sqrt[cc])/PowerExpand[Sqrt[den]],Nothing],{e,ecands}];
 	Do[If[!PossibleZeroQ[PowerExpand[term^2-res[[i]]^2/.sqrt->Sqrt]],Print["Error in simplify nested roots"];Print[term];Print[res[[i]]];Abort[]],{i,Length[res]}];
 	res/.Power[a_,1/2]:>sqrt[a]
 ]
 
-ExSquareRootQuad2[term_,x_]:= Block[{shift, rad, cl,dnsq,numx,tsh,res,sn},
+ExSquareRootQuad2[term_,x_]:= Block[{shift, rad, cl,dnsq,tsh,res,sn},
 	cl=CoefficientList[Denominator[term]/.sqrt[_]:>1,x];
 	{shift,rad}={cl[[2]]/(2cl[[3]]),(cl[[2]]^2-4cl[[1]]cl[[3]])/(4cl[[3]]^2)}//Factor;
 	tsh=term/.x->x-shift//FactorCollect;
@@ -2526,7 +2496,7 @@ ExSquareRootQuad[term_,x_]:= Block[{shift, rad, cl,dnsq,numx,tsh,res},
 	If[FreeQ[numx,n[_]],FactorCollect[res]/.x->Sqrt[rad],Failed[]]
 ]
 
-ExSqrt[term_, x_] := Block[{num, den, prob, cl, c, d, s, n, sq, a, b},
+ExSqrt[term_, x_] := Block[{num, den, prob, cl, c, d, s, nn, sq, a, b},
 	If[pri>4,Print["ExSqrt"]];
   	(*Print[Exsqrt[term,x]];*)
   	num = Numerator[term];
@@ -2538,15 +2508,15 @@ ExSqrt[term_, x_] := Block[{num, den, prob, cl, c, d, s, n, sq, a, b},
   	If[Length[prob] == 1, prob = prob[[1]], Print["Too many den terms"]];
   	cl = CoefficientList[prob, x];
   	If[Length[cl] != 3, Print["not quadratic"]; Abort[]];
-  		{d, s, n} = {-cl[[2]], sqrt[cl[[2]]^2 - 4 cl[[1]] cl[[3]]], 2 cl[[3]]};
+  		{d, s, nn} = {-cl[[2]], sqrt[cl[[2]]^2 - 4 cl[[1]] cl[[3]]], 2 cl[[3]]};
   			{a, b, c} = {Coefficient[num, x], num /. x -> 0, den/prob};
   	sq = s /. sqrt[u_] :> u;
-  	(*{-((a d+n b)s+a sq)/(2c sq),((a d+n b)s-a sq)/(2c sq)}*)
-  	FactorCollect/@DeleteCases[{-((a d + n b))/(c s n), a/(c n)}, 0]
+  	(*{-((a d+nn b)s+a sq)/(2c sq),((a d+nn b)s-a sq)/(2c sq)}*)
+  	FactorCollect/@DeleteCases[{-((a d + nn b))/(c s nn), a/(c nn)}, 0]
   ]
 
 
-MatrixInverse[mat_] :=Block[ {mat1,mat2,  l,mul,row,col, inv,nonzero},
+MatrixInverse[mat_] :=Block[ {mat1,mat2,  mul,col, inv,nonzero},
 	inv = {};
 	mat1 = mat;
 	mat2= IdentityMatrix[Length[mat]];
@@ -2575,7 +2545,7 @@ MatrixInverse[mat_] :=Block[ {mat1,mat2,  l,mul,row,col, inv,nonzero},
 
 
 SortDlogs[dlogs_, orderedlist_] := 
- Block[{U,i}, 
+ Block[{U}, 
   SortBy[dlogs, 
    Prepend[Union@
        Cases[# /. 
@@ -2592,7 +2562,7 @@ GetSimplifiedDlogList3[dloglist_]:= Block[{gs,orderedlist},
 ]
 
 GetSimplifiedDlogList3[dloglist_, orderedlist_] := 
- Block[{p, clist, c, gl, sc, g, revlist, ph, ch,H,ig,i,cll,cc,gtopos,max,sign,Q},	
+ Block[{p, clist, c, gl, sc, g, revlist, ph, ch,H,cll,cc,gtopos,max,sign,Q},	
 	revlist = Reverse[orderedlist];
 	H = Head[orderedlist[[1]]];
 	clist = Collect[dloglist,_H,Factor];
@@ -2604,18 +2574,17 @@ GetSimplifiedDlogList3[dloglist_, orderedlist_] :=
 		gl = GetLinsOrd[c];
 		clist[[p]] = 
 		Collect[ 
-			clist[[p]] - ReplacePart[ConstantArray[1, Length[c]], ({#} & /@ gl[[1]]) -> 0]
-				*(gl[[2]].clist[[p]][[gl[[1]]]]), H[__], Factor
+			clist[[p]] - ReplacePart[ConstantArray[1, Length[c]], ({#} & /@ gl[[1]]) -> 0] *(gl[[2]].clist[[p]][[gl[[1]]]]), H[__], Factor
 		];
 		cll = cc /@ Range[Length[dloglist]];
 
 		p = Flatten@Position[clist, a_ /; (! FreeQ[a, g] && FreeQ[a, Alternatives @@ (revlist[[;; ig - 1]])]), {1}];
 		Do[
-			c = Table[Coefficient[clist[[i]], g], {i, p}];
+			c = Table[Coefficient[clist[[ii]], g], {ii, p}];
 			sc = FindSimpleCombination[Prepend[Delete[c, i], c[[i]]]];
 			sc = Insert[Delete[sc, 1], sc[[1]], i];
 			clist[[p[[i]]]] = Collect[clist[[p]].sc, H[__], Factor];
-			c = Table[Coefficient[clist[[i]], g], {i, p}];
+			c = Table[Coefficient[clist[[ii]], g], {ii, p}];
 			,
 			{i, Length[p]}
 		];
