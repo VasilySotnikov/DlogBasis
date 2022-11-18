@@ -635,8 +635,8 @@ PowCount[ex_, pow_] :=  Block[ {digs},
 
 GetDlogListRaw[Gs_, Ls_, n_] := Block[{tab, status, sol},
 	status=True;
-	tab=Table[Print[i," of ",Length[Ls[[1]]]];sol=Quiet@Solve[Ls[[1]] == UnitVector[Length[Ls[[1]]], i], 
-      Cases[Variables[Ls[[1]]], n[_]]]; If[Length[sol]!=1, status=False; Nothing,  sol[[1]]], {i, 1, Length[Ls[[1]]]}];
+	tab=Monitor[Table[sol=Quiet@Solve[Ls[[1]] == UnitVector[Length[Ls[[1]]], i], 
+      Cases[Variables[Ls[[1]]], n[_]]]; If[Length[sol]!=1, status=False; Nothing,  sol[[1]]], {i, 1, Length[Ls[[1]]]}],i];
      
   
     If[status===False,     
