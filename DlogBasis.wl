@@ -59,6 +59,7 @@ UnsolvedTerm::usage="Whenever the LeadingSingularities method does not succeed t
 
 SQRTTimeConstrainException::usage="An exception which occurs if SQRTTimeConstrain is exceeded";
 
+G::usage = "Inert head reserved for Feynman integrals.";
 
 
 Begin["`Private`"] (* Begin Private Context *)
@@ -413,7 +414,7 @@ Parametrize[expr_]/;(initialized&&parametrized) := Block[{exp},
 	exp=ExpandVectors[exp, Join[internal, external]];
 	exp=exp/.toparametrization;
 	exp=exp/.Dispatch[replacements];
-	exp/.Global`G[_,inds_List]/;Length[inds]==Length[propagators]:>GtoFunction[Global`G[1,inds]]
+	exp/.G[_,inds_List]/;Length[inds]==Length[propagators]:>GtoFunction[G[1,inds]]
 ]
 
 Parametrize[expr_List,n_]/;(initialized&&parametrized) := 
@@ -445,13 +446,13 @@ GtoFunction[term_]:=Block[{},
 GtoFunction[g_List, nn_]/;initialized :=Block[{maxa, func, glist},
 	n=nn;
 	If[Length[g]==0, Return[0]];
-	glist=Union[Cases[g,Global`G[__],Infinity]];
+	glist=Union[Cases[g,G[__],Infinity]];
 	maxa= Table[Max[Table[glist[[i,2,j]],{i,1,Length[g]}]],{j,1,Length[propagators]}];
 	(*Print[maxa];*)
 	(*func = Sum[n[i]*Times@@(Factor[Parametrize[propagators]]^(-g[[i,2]]+maxa)),{i,1,Length[g]}]*	
 		(Times@@(Factor[Parametrize[propagators]]^(-maxa))*jac);*)
 	
-	func = Collect[((n/@Range[Length[g]]).(g/.Global`G[_,ind_]:>Times@@(Factor[Parametrize[propagators]]^(-ind+maxa)))),n[_],Factor] *(Times@@(Factor[Parametrize[propagators]]^(-maxa))*jac);
+	func = Collect[((n/@Range[Length[g]]).(g/.G[_,ind_]:>Times@@(Factor[Parametrize[propagators]]^(-ind+maxa)))),n[_],Factor] *(Times@@(Factor[Parametrize[propagators]]^(-maxa))*jac);
 	(*fl = FunctionToList[func, n, Length[g]];
 	ListToFunction[fl, n]*)
 	FactorCollect[func]
@@ -672,7 +673,7 @@ GenerateDlogbasis[Gs_List, Ls_List, n_]:=Block[{sol},
 		If[Length[Ls[[1]]]==0, Return[{}]];
 		sol = GetDlogListInv[Gs, Ls, n];
 	];
-	If[sol===Global`Failed[] || FreeQ[sol,_Global`G], sol, GetSimplifiedDlogList3[sol]]
+	If[sol===Global`Failed[] || FreeQ[sol,_G], sol, GetSimplifiedDlogList3[sol]]
 ]
 
 GetDlogListMixed[Gs_, Ls_, n_]:=Block[{gdlog},
@@ -2555,7 +2556,7 @@ SortDlogs[dlogs_, orderedlist_] :=
 
 GetSimplifiedDlogList3[dloglist_]:= Block[{gs,orderedlist},
 	If[Length[dloglist]==0,Return[dloglist]];
-	gs=Cases[dloglist,Global`G[_,List[__]],All]//Union;
+	gs=Cases[dloglist,G[_,List[__]],All]//Union;
 	If[Length[gs]==0,Print["No integrals found of the form G[_,List[__]]"];Abort[]];
 	orderedlist=SortBy[gs,Count[#[[2]],_?Positive]*1000-Total[Cases[#[[2]],_?Negative]]&];
 	GetSimplifiedDlogList3[dloglist,orderedlist]
