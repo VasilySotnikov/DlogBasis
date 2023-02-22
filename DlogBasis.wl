@@ -62,6 +62,9 @@ SQRTTimeConstrainException::usage="An exception which occurs if SQRTTimeConstrai
 G::usage = "Inert head reserved for Feynman integrals.";
 
 
+Internal; External; Replacements; Propagators;
+
+
 Begin["`Private`"] (* Begin Private Context *)
 external={};
 internal={};
@@ -150,34 +153,34 @@ InitializeDlogbasis[]:=Block[{},
 	pareqs={};
 	jac=1;
 	powers = {};
-	If[!MatchQ[Global`External, {a___}],
+	If[!MatchQ[External, {a___}],
 		Message[InitializeDlogbasis::External];
 		Return[$Failed];
 		,
-		external=Global`External;
+		external=External;
 	];
-	If[!MatchQ[Global`Internal, {a__}],
+	If[!MatchQ[Internal, {a__}],
 		Message[InitializeDlogbasis::Internal];
 		Return[$Failed];
 		,
-		internal=Global`Internal;
+		internal=Internal;
 	];	
-	If[!MatchQ[Global`Propagators, {a__}] || 
-		!FreeQ[ExpandVectors[Global`Propagators,Join[internal,external]]
+	If[!MatchQ[Propagators, {a__}] || 
+		!FreeQ[ExpandVectors[Propagators,Join[internal,external]]
 			/.Dot[_?(MemberQ[Join[internal,external],#]&),_?(MemberQ[Join[internal,external],#]&)]:>0, Alternatives@@(Join@@{internal,external})],
 		Message[InitializeDlogbasis::Propagators];
 		Return[$Failed];
 		,
-		propagators=Global`Propagators;
+		propagators=Propagators;
 	];
-	If[Head[Global`Replacements]===Symbol,
+	If[Head[Replacements]===Symbol,
 		replacements={},
-		If[!MatchQ[Global`Replacements, {___Rule}] ||
-			Or@@(!MatchQ[#,Dot[_,_]]&/@ExpandVectors[Global`Replacements[[All,1]],external]),
+		If[!MatchQ[Replacements, {___Rule}] ||
+			Or@@(!MatchQ[#,Dot[_,_]]&/@ExpandVectors[Replacements[[All,1]],external]),
 			Message[InitializeDlogbasis::Replacements];
 			Return[$Failed];
 			,
-			replacements=ExpandVectors[Global`Replacements, Join[internal,external]];
+			replacements=ExpandVectors[Replacements, Join[internal,external]];
 		];
 	];
 	
