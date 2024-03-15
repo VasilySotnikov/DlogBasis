@@ -647,7 +647,7 @@ GetDlogListRaw[Gs_, Ls_, n_] := Block[{tab, status, sol},
         Print["No solution found for inverting the system. Possible reasons: Leading singularities are not linear independent" <>" or integrand ansatz is not complete"];
         Return[Global`Failed[]]
     ];  
-	(n /@ Range[Length[Gs]].Gs) /. Ls[[2]] /. tab
+	{(n /@ Range[Length[Gs]].Gs) /. Ls[[2]] /. tab} // Flatten
 ]
 
 GetDlogListInv[Gs_, Ls_, n_] := Block[{cmat, reps, inv, ns},
