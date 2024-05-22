@@ -752,7 +752,7 @@ ExALL[func_,vari_,pr_,ns_]:=Block[{exl,i,nn,sols,ex,x,nexl,rules, res, exInt, un
 	For[i=1,i<=Length[vari],i++,
 		unslen=Length[unsolved];
 		(*If[i>=Length[vari]-1, Print["EXXLLL"];Print[exl]];*)
-		If[pri>-1,PrintTemporary["Variable ",i," of ",Length[vari]]];
+		If[pri>0,PrintTemporary["Variable ",i," of ",Length[vari]]];
 		exl=SortBy[exl,Length[#[[1]]]&];
 		If[pri>1,Print["exl",Length[#[[1]]]&/@exl]];
 		If[Length[exl]==0, (*Print["No solution"];*) Break[];  (*Return[{{},(#->0)&/@ns}]*)];
@@ -1504,9 +1504,9 @@ MyFactorList[expr_] := Block[{fl, m, factored, time},
   If[(UseMacaulay===True)&&(ByteCount[expr]>10000),
   	fl=TimeConstrained[FactorList[expr],2,Fail];
   	If[fl===Fail,
-  		If[pri>-1,PrintTemporary["Use Macaulay2. File: ",random,", size: ",ByteCount[expr]]];
+  		If[pri>0,PrintTemporary["Use Macaulay2. File: ",random,", size: ",ByteCount[expr]]];
   		{time,factored}=AbsoluteTiming[M2Factor[expr]];
-  		If[pri>-1,PrintTemporary["Macaulay2-time : ",time]];
+  		If[pri>0,PrintTemporary["Macaulay2-time : ",time]];
   		(*{time,factored}=AbsoluteTiming[Factor[expr]];
   		Print["MA-time : ",time];*)
   		If[Head[factored]===Times,fl=List@@factored,fl={factored}];
@@ -1538,9 +1538,9 @@ MyFactor[expr_]:=Block[{fac, time(*, exp*)},
   	If[fac===Fail,
   		(*exp=TimeConstrained[Cancel[expr],20,Print["no cancel"];expr];
   		Print["cancel worked"]; Print[ByteCount[expr]]; Print[ByteCount[exp]];*) 
-  		If[pri>-1,Print["Use M2. file: ",random,", size: ",ByteCount[expr]]];
+  		If[pri>0,Print["Use M2. file: ",random,", size: ",ByteCount[expr]]];
   		{time,fac}=AbsoluteTiming[M2Factor[expr]];
-  		If[pri>-1,Print["M2-time : ",time]];
+  		If[pri>0,Print["M2-time : ",time]];
   		(*{time,factored}=AbsoluteTiming[Factor[expr]];
   		Print["MA-time : ",time];*)
   	];
@@ -1830,7 +1830,7 @@ ExSQRT[terms_, vars_, nn_] :=
         nterms=nterms/.Power[a_,-1/2]:>1/sqrt[a];
         rules = {};
         Do[
-         If[ sqrtlsing,
+         If[ sqrtlsing && (pri>0),
              PrintTemporary["Variable ", i, " of ", Length[vars]];
          ];
          (*Print[nterms];*)
