@@ -61,6 +61,8 @@ SQRTTimeConstrainException::usage="An exception which occurs if SQRTTimeConstrai
 
 CleanMinusLFOFail::usage="An exception which occurs if CleanMinusListPlusFactorOut failed";
 
+InvalidGCDInput::usage="An exception which when unexpected input to GCDlist is encountered";
+
 G::usage = "Inert head reserved for Feynman integrals.";
 
 SetTimeConstrains::usage="SetTimeConstrains[n] 
@@ -1612,7 +1614,7 @@ LCMlist[lists_]:=Block[{l,lcm,i},
 
 (*expects the first factor to be numeric*)
 GCDlist[lists_]:=Block[{clists, res, inters, mins},
-	If[Min@@lists[[All,All,2]]<1,Throw[InvalidGCDInput[lists]]];
+	If[Min@@lists[[All,All,2]]<1,Throw[InvalidGCDInput[lists], InvalidGCDInput]];
 	clists=DeleteCases[lists,{{0,1},___}];
 	res={{GCD@@(clists[[All,1,1]]^clists[[All,1,2]]),1}};
 	inters=Intersection@@clists[[All,2;;,1]];
