@@ -1587,7 +1587,7 @@ CleanMinusListPlusFactorOut[flist_]:=Block[{tab, lcm, clean, gcd},
 	clean[[1,2]]=ProductFactorLists[{flist[[1,2]],lcm}];
 	clean[[1,1]]=ProductFactorLists[{flist[[1,1]],gcd}];
 	clean[[1]]=ListCancel[clean[[1]]];
-	If[!PossibleZeroQ[ListToFunction[clean,n]-ListToFunction[flist,n]],Throw[CleanMinusLFOFail[flist]];];
+	If[!PossibleZeroQ[ListToFunction[clean,n]-ListToFunction[flist,n]],Throw[CleanMinusLFOFail[flist],CleanMinusLFOFail];];
 	clean
 	
 ];
