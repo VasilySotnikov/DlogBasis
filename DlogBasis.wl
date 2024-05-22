@@ -59,11 +59,18 @@ UnsolvedTerm::usage="Whenever the LeadingSingularities method does not succeed t
 
 SQRTTimeConstrainException::usage="An exception which occurs if SQRTTimeConstrain is exceeded";
 
+CleanMinusLFOFail::usage="An exception which occurs if CleanMinusListPlusFactorOut failed";
+
 G::usage = "Inert head reserved for Feynman integrals.";
+
+SetTimeConstrains::usage="SetTimeConstrains[n] 
+set time constratins for square roots and apart to be n seconds
+";
 
 
 Internal; External; Replacements; Propagators;
 
+pri;SQRTTimeConstrain;MyListApartTimeConstrain;
 
 Begin["`Private`"] (* Begin Private Context *)
 external={};
