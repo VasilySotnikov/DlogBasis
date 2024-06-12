@@ -60,8 +60,9 @@ UnsolvedTerm::usage="Whenever the LeadingSingularities method does not succeed t
 SQRTTimeConstrainException::usage="An exception which occurs if SQRTTimeConstrain is exceeded";
 
 CleanMinusLFOFail::usage="An exception which occurs if CleanMinusListPlusFactorOut failed";
-
 InvalidGCDInput::usage="An exception which when unexpected input to GCDlist is encountered";
+FunctionToListError::usage="An exception which when unexpected input to GCDlist is encountered";
+
 
 G::usage = "Inert head reserved for Feynman integrals.";
 
@@ -737,7 +738,7 @@ FunctionToList[func_,nn_,len_]:=Block[{coflist,flist},
 	coflist=MyFactorList[Coefficient[Numerator[func],#]]&/@(n/@Range[len]);
 	flist={{{{1,1}},MyFactorList[Denominator[func]]},coflist};
 	flist=CleanMinusListPlusFactorOut[flist];
-	If[!PossibleZeroQ[ListToFunction[flist,n]-func],Throw[FunctionToListError[]]];
+	If[!PossibleZeroQ[ListToFunction[flist,n]-func],Throw[FunctionToListError, FunctionToListError]];
 	flist
 ];
 
