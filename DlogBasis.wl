@@ -846,13 +846,21 @@ ExALL[func_,vari_,pr_,ns_]:=Block[{exl,i,nn,sols,ex,x,nexl,rules, res, exInt, un
 		(*Print[ExIINT[unsolved/.res[[2]],Intersection[vari,Variables[unsolved]],n]];*)	
 		unsolvedReplaced = DeleteCases[unsolved/.res[[2]],{0,__}];
 		If[Length[unsolvedReplaced]==0, Return[res]];
-		exInt=TimeConstrained[
-                        ExSQRT[{unsolved[[-1,1]]/.res[[2]]},unsolved[[-1,2]],n],
-                        SQRTTimeConstrain,
-			remainunsolved=Append[remainunsolved,{unsolved[[-1,1]]/.res[[2]]}];
-			Print["SQRT time constrain exceeded  (",SQRTTimeConstrain," s). Solution will probably be incomplete."];
-                        Throw[SQRTTimeConstrainException, SQRTTimeConstrainException];
-                ];
+		exInt=Catch[
+			TimeConstrained[
+				ExSQRT[{unsolved[[-1,1]]/.res[[2]]},unsolved[[-1,2]],n],
+				SQRTTimeConstrain,
+				remainunsolved=Append[remainunsolved,{unsolved[[-1,1]]/.res[[2]]}];
+				Print["SQRT time constrain exceeded  (",SQRTTimeConstrain," s). Solution will probably be incomplete."];
+				Throw[SQRTTimeConstrainException, SQRTTimeConstrainException];
+			]
+			,
+			UnsolvedTerm
+		];
+		If[Head[exInt]===UnsolvedTerm,
+		Throw[Prepend[exInt, res], UnsolvedTerm];
+		];
+
 		unsolved=Delete[unsolved,-1];
 		joinedSols=(#[[1]] -> (#[[2]] //.Join[res[[2]],exInt[[2]]])) & /@ Join[res[[2]],exInt[[2]]];
 		res={Join[exInt[[1]]/.joinedSols,res[[1]]/.joinedSols][[GetLinsOrd[Join[exInt[[1]]/.joinedSols,res[[1]]/.joinedSols]  ][[1]]]],joinedSols};
@@ -1841,8 +1849,14 @@ ExSQRT[terms_, vars_, nn_] :=
            If[ pri>1,
                Print["Term ", i, " of ", Length[nterms]]
            ];	
-           next = 
-            ExSqrtList[FactorCollect[nterms[[i, 1]] /. rules], nterms[[i, 2]], n];
+           next = Catch[
+               ExSqrtList[FactorCollect[nterms[[i, 1]] /. rules], nterms[[i, 2]], n]
+               ,
+               UnsolvedTerm
+           ];
+           If[Head[next] === UnsolvedTerm, 
+                Throw[UnsolvedTerm[{lsings/.sqrt->Sqrt, rules}], UnsolvedTerm];
+           ];
            
            rules = Union[rules /. next[[2]], next[[2]]];
            next,
@@ -2235,7 +2249,7 @@ FindTransformation[term_, vars_] :=
     	If[pri>8,Print[FindTransformationn[term, vars]]]; 
         If[ Length[vars] < 2,
             Print["No transformation. Only one variable"];
-            Throw[UnsolvedTerm[term/.{sqrt->Sqrt,n[1]->1},vars],UnsolvedTerm];
+            Throw[UnsolvedTerm[term/.{sqrt->Sqrt},vars],UnsolvedTerm];
         ];
         sqr = Cases[term, sqrt[_]^(-1), Infinity];
         (*Print[sqr];*)
