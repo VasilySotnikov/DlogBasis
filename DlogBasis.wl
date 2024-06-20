@@ -2356,7 +2356,7 @@ FindDoublePoles[term_, vars_, n_] :=
         ];
         Q = den/sqrt[S];
         return = 
-         Do[If[ 2 Exponent[P*Pn/.sqrt[a_]:>v^(Exponent[a,v]/2)sqrt[a], v] + 2 > 2 Exponent[Q, v] + Exponent[S, v],
+         Do[If[ 2 Exponent[P*Pn/.sqrt[a_]:>v^(Exponent[a,v]/2), v] + 2 > 2 Exponent[Q, v] + Exponent[S, v],
                 Return[DoublePole[
                   GetRule[CoefficientList[P, v][[-1]], vars, n]]]
             ], {v, vars}];
