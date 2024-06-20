@@ -2238,7 +2238,7 @@ ConvertQuadratic[term_,x_,vars_]:=Block[{den, y, fac, cl, a, b, c, d, trans, al,
 	{c,d}=CoefficientList[cl[[1]],y];
 	newy=(b^2 - 4 a c - 4 a^2 y^2)/(4 a d);
 	trans=y->newy;
-	al=FactorCollect/@(D[newy,y] #/(sqr/.trans)&)/@ApartList[FactorCollect[term/.sqrt[_]:>1/.trans], x];
+	al=FactorCollect/@(D[newy,y] #/(sqr/.trans)&)/@ApartList[FactorCollect[term sqr/.trans], x];
 	If[Length[al]!=2, Print["Convert quadratic failed. Not two terms"]; Throw[Fail[term/.{sqrt->Sqrt,n[1]->1},vars],Fail]];
 	al
 ]
@@ -2465,7 +2465,7 @@ ExSquareRoot[term_, x_] := Block[{num, den, sqr, xt, cl, rep},
   ];
   xt = DeleteCases[Cases[den, _?(! FreeQ[#, x] &)], sqrt[_]];
   If[Length[xt] == 0 && Exponent[sqr[[1]], x] == 2, 
-   Return[FactorCollect/@{(term/.sqrt[_]:>1)/sqrt[Coefficient[sqr[[1]],x^2]]}]];
+   Return[FactorCollect/@{term sqr/sqrt[Coefficient[sqr[[1]],x^2]]}]];
   If[Length[xt] != 1, Print["no single term"], xt = xt[[1]]];
   If[Exponent[xt, x] != 1, Print["Wrong Exponent in term"]; Abort[]];
   cl = CoefficientList[xt, x];
