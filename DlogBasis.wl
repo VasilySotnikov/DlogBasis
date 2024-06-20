@@ -2366,7 +2366,7 @@ FindDoublePoles[term_, vars_, n_] :=
         return = 
          Do[If[ dp = 
             Cases[MyFactorList[Q^2 S], 
-             {a_, p_} /; (p > 2 && ! FreeQ[a, x])];
+             {a_, p_} /; (p > 2 && ! FreeQ[a, x] && FreeQ[S,x])];
                 Length[dp] > 0,
                 Return[DoublePole[
                   GetRule[PolynomialRemainder[P/.(sqrt[a_]:>(sqrt[a]/.x->xx)), dp[[1, 1]], x]/.xx->x, vars, n]]]
