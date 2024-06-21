@@ -2197,9 +2197,9 @@ MyCancel[term_] := Block[{num, den, ns, coeffs, factored, newnum, newden, bc, ca
 	If[!PossibleZeroQ[num/.n[_]:>0],Print["SetN[] not initialized or term not parametrized with n. Use normal cancel"];Return[Cancel[term]]];
 	coeffs = Coefficient[num, #]&/@ns;
 	bc=ByteCount/@coeffs;
-	If[Max[bc]>10000000, Print["Cancel contains big terms: ",bc]];
+	If[Max[bc]>10000000 && pri >= 0, Print["Cancel contains big terms: ",bc]];
 	factored = Table[
-		If[Max[bc]>10000000,Print["Cancel term ",i," of ",Length[coeffs]]];
+		If[Max[bc]>10000000 && pri >= 0,Print["Cancel term ",i," of ",Length[coeffs]]];
 		If[
 			PossibleZeroQ[coeffs[[i]]]
 			,
