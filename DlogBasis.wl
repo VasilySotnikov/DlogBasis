@@ -2218,10 +2218,10 @@ MyCancel[term_] := Block[{num, den, ns, coeffs, factored, newnum, newden, bc, ca
 
 ConvertQuadratic[term_,x_,vars_]:=Block[{den, y, fac, cl, a, b, c, d, trans, al, sqr, newy},
 	den= Denominator[term];
-	sqr=Cases[ProductToList[den], sqrt[_]];
-	If[Length[sqr]>1, Print["Too many sqrts in convert quadratic"]; Abort[]];
+	sqr=Cases[ProductToList[den],  sss_sqrt/;!FreeQ[sss, x]];
+	If[Length[sqr]>1, Print["Too many sqrts in convert quadratic: ", sqr, "\n\tvariable ", x]; Abort[]];
 	If[Length[sqr]==0, sqr=1, sqr=sqr[[1]]];
-	den=den/.sqrt[_]:>1;
+	den=den/.sqr->1;
 	If[Exponent[den,x]==1,Return[{term}]];
 	fac=Cases[ProductToList[den],_?(!FreeQ[#,x]&)];
 	If[Length[fac]==0&&FreeQ[sqr,x], Print["Convert quadratic discovered double pole"]; Print[term]; Abort[]];
@@ -2255,6 +2255,7 @@ FindTransformation[term_, vars_] :=
         (*Print[sqr];*)
         If[ Length[sqr] != 1,
             Print["No transformation. No square root"];
+            If[pri>2, Print[sqr]];
             Throw[Fail[term/.{sqrt->Sqrt,n[1]->1},vars]];
             ,
             sqr = 1/sqr[[1]]/.sqrt[u_]:>u;
@@ -2454,7 +2455,7 @@ ExSquareRoot[term_, x_] := Block[{num, den, sqr, xt, cl, rep},
   num = Numerator[term];
   den = ProductToList[Denominator[term]];
   If[(Exponent[num, x] > 0 && Exponent[Times@@den, x]==1 ) || (Exponent[num,x]>1) || Exponent[Times@@den,x]>2, Print["Wrong powers in ",x]; Abort[];];
-  sqr = Cases[den, sqrt[_]];
+  sqr = Cases[den, sss_sqrt/;!FreeQ[sss,x]];
   If[Length[sqr] != 1, Print["no sqrt"]; Print[ExxSquareRoot[term, x]]; Abort[], sqr = sqr[[1]]];
   If[! MatchQ[Exponent[sqr[[1]], x], 1 | 2], 
    Print["Not quadratic in square root"]];
