@@ -1902,6 +1902,29 @@ ExSQRT[terms_, vars_, nn_] :=
     ]
 
 
+getLogCoefficients[var_][expr_] := Block[{vars, coeffs},
+	vars = Cases[expr, Log[xx_/;!FreeQ[xx,var]], {0,Infinity}]//DeleteDuplicates;
+	If[Length[vars]==0, Return[$Failed]];
+
+	coeffs = Quiet[CoefficientArrays[expr, vars], CoefficientArrays::poly];
+
+	If[Head[coeffs] == CoefficientArrays, Return[$Failed]];
+	If[Length[coeffs] != 2, Return[$Failed]];
+	If[Dimensions[coeffs[[2]]] =!= {Length[vars]}, Return[$Failed]];
+	If[First[coeffs] =!= 0, Return[$Failed]];
+    	
+
+	coeffs = coeffs[[2]]["NonzeroValues"];
+
+	If[!FreeQ[coeffs // PowerExpand // Together, var], Return[$Failed]];
+	
+	(*coeffs = DeleteDuplicates[coeffs, NumericQ[#1/#2// PowerExpand // Together]&];*)
+
+	coeffs = DeleteDuplicates[coeffs, NumericQ[#1/#2// Together]&];
+	
+	coeffs
+];
+
 ExSqrtList[term_, vars_, nn_] :=
     Block[ {nterm, rules, nrules, fsv, xxx, probs, rest, sqr, ls},
     	n=nn;
@@ -1929,6 +1952,19 @@ ExSqrtList[term_, vars_, nn_] :=
         ];
         fsv = FindSimplestVariable[nterm, vars];
         If[ Min[fsv] > 10000,
+        	(* 
+        		If there is only one variable left and its none of the implemented cases, try to ask Mathematica to integrate.
+        		This works for some cases where dlog forms were found by an ansatz. 
+        		Once they are found Mathematica might be able to integrate through Logs.
+        		TODO: implement specifically the cases where this goes through.
+        	*)
+        	If[Length[var]==1,
+        	    ls = Integrate[nterm,var]//ToRadicals//Normal//TrigToExp // getLogCoefficients[var];
+        	    If[ls =!= $Failed,
+        	    	If[pri>0, Print["Integration worked for one variable"]];
+        	        Return[{ls, rules, {}}];
+        	    ];
+        	];
             nterm = Catch[
             	FindTransformation[nterm, vars]
             	,
