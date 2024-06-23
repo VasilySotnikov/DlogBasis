@@ -862,18 +862,17 @@ ExALL[func_,vari_,pr_,ns_]:=Block[{exl,i,nn,sols,ex,x,nexl,rules, res, exInt, un
 				Switch[tag,
 					SQRTTimeConstrainException,
 					Print["SQRT time constrain exceeded  (",SQRTTimeConstrain," s)."];
-					remainunsolved=Append[remainunsolved,{unsolved[[-1,1]]}];
-					unsolved=Delete[unsolved,-1];
+					remainunsolved=Append[remainunsolved,unsolved[[-1,1]]];
  	 	 	 	 	{{},{}}
 					,
 					UnsolvedTerm,
 					Print["Term remains unsolved"];
-					remainunsolved=Append[remainunsolved,{value[[1]]}];
-					unsolved=Delete[unsolved,-1];
-					{{}, value[[2]]}
+					remainunsolved=Append[remainunsolved,value[[2]]];
+					value[[1]]
 				]
 			]
 		];
+		unsolved=Delete[unsolved,-1];
 
 		joinedSols=(#[[1]] -> (#[[2]] //.Join[res[[2]],exInt[[2]]])) & /@ Join[res[[2]],exInt[[2]]];
 		
@@ -1844,7 +1843,7 @@ FactorCollect[term_]:=Block[{res, t1, num, den, ns, nds, collnum, lcm, gcd, facl
 
 
 ExSQRT[terms_, vars_, nn_] :=
-    Block[ {vs, nterms, rules, nex, next, gl, lsings},
+    Block[ {vs, nterms, rules, nex, next, gl, lsings, remainunsolved = {}},
         If[Length[vars]==0,Return[{{terms},{}}]];
     	n=nn;
     	lsingvars=vars;
@@ -1872,17 +1871,15 @@ ExSQRT[terms_, vars_, nn_] :=
            If[ pri>1,
                Print["Term ", i, " of ", Length[nterms]]
            ];	
-           next = Catch[
-               ExSqrtList[FactorCollect[nterms[[i, 1]] /. rules], nterms[[i, 2]], n]
-               ,
-               UnsolvedTerm
-           ];
-           If[Head[next] === UnsolvedTerm, 
-                Throw[UnsolvedTerm[lsings/.sqrt->Sqrt, Union[rules, next[[-1]]]], UnsolvedTerm];
-           ];
-           
+           next = ExSqrtList[FactorCollect[nterms[[i, 1]] /. rules], nterms[[i, 2]], n];
            rules = Union[rules /. next[[2]], next[[2]]];
-           next,
+
+           If[Head[next] === UnsolvedTerm, 
+           		remainunsolved = Append[remainunsolved, next[[1]]/.sqrt->Sqrt];
+           		Nothing,
+           	    next
+           ]
+          	,
            {i, Length[nterms]}];
          (*Print["nex"];*)
          (*Print[nex];*)
@@ -1898,6 +1895,13 @@ ExSQRT[terms_, vars_, nn_] :=
 
          (*Print[nterms];*)
          , {i, Length[vars]}];
+
+
+		If[Length[remainunsolved] >0,
+        	remainunsolved = remainunsolved /. rules;
+        	Throw[UnsolvedTerm[{lsings/.sqrt->Sqrt, rules}, remainunsolved], UnsolvedTerm];
+        ];
+
         {lsings, rules}
     ]
 
@@ -1914,9 +1918,9 @@ getLogCoefficients[var_][expr_] := Block[{vars, coeffs},
 	If[First[coeffs] =!= 0, Return[$Failed]];
     	
 
-	coeffs = coeffs[[2]]["NonzeroValues"];
+	coeffs = coeffs[[2]]["NonzeroValues"]//PowerExpand//Together;
 
-	If[!FreeQ[coeffs // PowerExpand // Together, var], Return[$Failed]];
+	If[!FreeQ[coeffs, var], Return[$Failed]];
 	
 	(*coeffs = DeleteDuplicates[coeffs, NumericQ[#1/#2// PowerExpand // Together]&];*)
 
@@ -1965,13 +1969,9 @@ ExSqrtList[term_, vars_, nn_] :=
         	        Return[{ls, rules, {}}];
         	    ];
         	];
-            nterm = Catch[
-            	FindTransformation[nterm, vars]
-            	,
-            	UnsolvedTerm
-            ];
+            nterm = FindTransformation[nterm, vars];
             If[Head[nterm] === UnsolvedTerm,
-            	Throw[UnsolvedTerm[nterm, rules], UnsolvedTerm]
+            	Return[UnsolvedTerm[nterm//First, rules, vars], Block];
             ];
             If[pri>5,Print["Found"]];
             If[pri>5,Print[nterm]];
@@ -1994,14 +1994,14 @@ ExSqrtList[term_, vars_, nn_] :=
         
         If[ nterm === Failed[_],
             Print["No simple variable found and no transformation found"];
-            Throw[UnsolvedTerm[term/.sqrt->Sqrt,rules],UnsolvedTerm];
-            Return[Failed[]],
+            Return[UnsolvedTerm[term/.sqrt->Sqrt,rules, vars], Block];
+            ,
             fsv = FindSimplestVariable[nterm, vars];
         ];
         If[ Min[fsv] > 10000,
             Print["Failed after transformation"];
             (*Print[nterm];*)
-            Throw[UnsolvedTerm[term/.sqrt->Sqrt,rules],UnsolvedTerm];
+            Return[UnsolvedTerm[term/.sqrt->Sqrt,rules, vars], Block];
         ];
         xxx = vars[[Ordering[fsv][[1]]]];
         (*
@@ -2011,7 +2011,7 @@ ExSqrtList[term_, vars_, nn_] :=
         sqr = Cases[{nterm}, sqrt[_]^(-1), Infinity];
         If[ Length[sqr] > 1,
             Print["Too many square roots in one term"];
-            Throw[UnsolvedTerm[term/.sqrt->Sqrt,rules],UnsolvedTerm];
+            Return[UnsolvedTerm[nterm/.sqrt->Sqrt,rules, vars], Block];
         ];
         (*Print[nterm];*)
         If[ Length[sqr] == 0,
@@ -2023,9 +2023,15 @@ ExSqrtList[term_, vars_, nn_] :=
         ];
         (*Print[sqr];*)
         (*probs = ((*Join@@(ConvertQuadratic[#,xxx,vars]&/@*)(#/sqr&)/@ApartListSQRT[rest,xxx]);(*FactorCollect/@SumToList[Apart[rest, xxx]];*)*)
-        probs =Join@@(ConvertQuadratic[#,xxx,vars]&/@ (#/sqr&)/@ApartListSQRT[rest,xxx]);(*FactorCollect/@SumToList[Apart[rest, xxx]];*)
+        probs =ConvertQuadratic[#,xxx,vars]&/@ (#/sqr&)/@ApartListSQRT[rest,xxx];(*FactorCollect/@SumToList[Apart[rest, xxx]];*)
         (*Print[probs];*)
         (*Print[sqr];*)
+
+     	If[!FreeQ[probs,_UnsolvedTerm],
+     		Print["Failed with nested square root"];
+     		Return[UnsolvedTerm[nterm/.sqrt->Sqrt,rules, vars], Block];
+     	];
+		probs = Join@@probs;
 
         ls = If[ sqr === 1 || Exponent[sqr[[1]], xxx] == 0,
 
@@ -2038,7 +2044,6 @@ ExSqrtList[term_, vars_, nn_] :=
                 (* ExSqrt[#,xxx]&/@probs,
                  ExSquareRoot[#,xxx] &/@probs;*)
              ];
-         If[!FreeQ[ls,Failed[]],Print["Failed with nested square root"];Throw[UnsolvedTerm[term/.sqrt->Sqrt,rules],UnsolvedTerm];];
          (*Print[Length/@ls];*)
         {Join @@ ls, rules, DeleteCases[vars, xxx]}
     ]
@@ -2305,7 +2310,7 @@ ConvertQuadratic[term_,x_,vars_]:=Block[{den, y, fac, cl, a, b, c, d, trans, al,
 	newy=(b^2 - 4 a c - 4 a^2 y^2)/(4 a d);
 	trans=y->newy;
 	al=FactorCollect/@(D[newy,y] #/(sqr/.trans)&)/@ApartList[FactorCollect[term sqr/.trans], x];
-	If[Length[al]!=2, Print["Convert quadratic failed. Not two terms"]; Throw[Fail[term/.{sqrt->Sqrt,n[1]->1},vars],Fail]];
+	If[Length[al]!=2, Print["Convert quadratic failed. Not two terms"]; Return[UnsolvedTerm[term/.{sqrt->Sqrt},vars]]];
 	al
 ]
 
@@ -2315,14 +2320,14 @@ FindTransformation[term_, vars_] :=
     	If[pri>8,Print[FindTransformationn[term, vars]]]; 
         If[ Length[vars] < 2,
             Print["No transformation. Only one variable"];
-            Throw[UnsolvedTerm[term/.{sqrt->Sqrt},vars],UnsolvedTerm];
+            Return[UnsolvedTerm[term/.{sqrt->Sqrt},vars]];
         ];
         sqr = Cases[term, sqrt[_]^(-1), Infinity];
         (*Print[sqr];*)
         If[ Length[sqr] != 1,
             Print["No transformation. No square root"];
             If[pri>2, Print[sqr]];
-            Throw[Fail[term/.{sqrt->Sqrt,n[1]->1},vars]];
+            Return[UnsolvedTerm[term/.{sqrt->Sqrt},vars]];
             ,
             sqr = 1/sqr[[1]]/.sqrt[u_]:>u;
         ];
@@ -2357,7 +2362,7 @@ FindTransformation[term_, vars_] :=
         	(*Print[Table[Solver[CoefficientList[Numerator[Together[sqr /. tra]], vs][[4 ;;]] == 0, qs], {vs, Table[Prepend[Delete[vars, i], vars[[i]]], {i, Length[vars]}]}]];*)
         	If[ Max[Length /@ sols] > 0, Break[] ];
         	If[ h==Length[vars] && k==Length[vars] && p==pmax, Print["No transformation found."]; 
-        		Throw[UnsolvedTerm[term/.{sqrt->Sqrt,n[1]->1},vars],UnsolvedTerm]; ];
+        		Return[UnsolvedTerm[term/.{sqrt->Sqrt},vars], Block]; ];
         	,
         	{p,pmax},{h,Length[vars]},{k,Length[vars]}
         	
