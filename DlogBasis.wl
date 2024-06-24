@@ -1962,11 +1962,12 @@ ExSqrtList[term_, vars_, nn_] :=
         		Once they are found Mathematica might be able to integrate through Logs.
         		TODO: implement specifically the cases where this goes through.
         	*)
-        	If[Length[var]==1,
-        	    ls = Integrate[nterm,var]//ToRadicals//Normal//TrigToExp // getLogCoefficients[var];
+        	If[Length[vars]==1,
+        		ls = $Failed;
+        	    ls = Integrate[nterm/.sqrt->Sqrt,vars[[1]]]//ToRadicals//Normal//TrigToExp // getLogCoefficients[vars[[1]]];
         	    If[ls =!= $Failed,
         	    	If[pri>0, Print["Integration worked for one variable"]];
-        	        Return[{ls, rules, {}}];
+        	        Return[{ls, rules, {}}, Block];
         	    ];
         	];
             nterm = FindTransformation[nterm, vars];
