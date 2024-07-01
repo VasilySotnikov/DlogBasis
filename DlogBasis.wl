@@ -699,7 +699,7 @@ GetDlogListMixed[Gs_, Ls_, n_]:=Block[{gdlog},
 LeadingSingularities[func_,vars_]:=Block[{lsing},
 	lsing=LeadingSingularities[func npar[1],vars,npar];
 	If[lsing===Null,Return[Null]];
-	If[Head[lsing]===UnsolvedTerm,Return[lsing]];
+	If[Head[lsing]===UnsolvedTerm,Return[lsing/.npar[1]->1]];
 	If[Length[lsing[[2]]]==1,Fail["DoublePole"],lsing[[1]]/.npar[1]->1]
 ]
 
